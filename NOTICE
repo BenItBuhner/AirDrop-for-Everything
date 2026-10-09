@@ -1,0 +1,46 @@
+AirDrop-for-Everything -- provenance and credits
+=================================================
+
+This project is a clean-room re-implementation of publicly documented and
+publicly reverse-engineered behaviour of Apple's AirDrop protocol. No source
+code from the projects below is copied verbatim; the protocol constants,
+message shapes, and operational quirks they discovered are re-expressed here
+in portable Python.
+
+Primary inspiration -- please credit these authors:
+
+  * t4t5/omdrop-owl      https://github.com/t4t5/omdrop-owl
+        Brent Kearney's Omdrop packaged for Open Wireless Link (OWL).
+        The original motivation for this project: AirDrop receiving on a
+        Linux laptop with a Broadcom radio. The repository itself carries
+        no LICENSE file, so this project re-implements observed behaviour
+        rather than copying code.
+
+  * brentkearney/omdrop-awdl    https://github.com/brentkearney/omdrop-awdl
+        The userspace pieces this project's protocol layer mirrors:
+        airdrop-send.py (sender state machine), awdl_identity.py (identity),
+        ble-airdrop-adv.py (BLE wake advert), awdl-airdrop-adv.py /
+        awdl-mdns-respond.py (raw mDNS on AWDL), awdl-af-parse.py (action
+        frame parsing). Kernel patches in that repo are GPL-2.0-only and
+        are NOT included here.
+
+  * brentkearney/omdrop-plugin  https://github.com/brentkearney/omdrop-plugin
+        MIT licensed (c) 2026 Brent Kearney. airdrop-serve.py defines the
+        receiver behaviour this project's server.py re-implements:
+        /Discover /Ask /Upload handling, safe-name rules, AppleDouble
+        skipping, free-space budgets, chunked/fixed body reading.
+
+  * jedbillyb/owl              https://github.com/jedbillyb/owl
+        GPLv3. The Open Wireless Link userspace daemon. Not vendored; our
+        Linux backend shells out to an installed owl binary the same way
+        omdrop-owl does.
+
+  * seemoo-lab/opendrop        https://github.com/seemoo-lab/opendrop
+        GPLv3. The original public AirDrop re-implementation; protocol
+        constants (service flags, ports, plist keys) cross-checked against
+        it. Not vendored.
+
+Apple Inc. is not affiliated with this project. "AirDrop" and "Apple" are
+trademarks of Apple Inc. The vendored PEM files under
+airdrop_everything/certs/ are Apple's public CA certificates, included only
+to verify peer identities during Contacts Only mode.
