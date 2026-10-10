@@ -30,6 +30,8 @@ def receiver(tmp_path):
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
     yield ident, port, dest, cfg
+    srv.shutdown()
+    t.join(timeout=5)
     srv.reset_sessions()
     srv.server_close()
 

@@ -182,6 +182,8 @@ def cmd_receive(args):
         for a in announcers:
             with contextlib.suppress(Exception):
                 a.stop()
+        srv.shutdown()          # stop serve_forever's loop first
+        t.join(timeout=5)
         srv.reset_sessions()
         srv.server_close()
     return 0
