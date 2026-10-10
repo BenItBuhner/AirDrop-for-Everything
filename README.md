@@ -1,18 +1,42 @@
 # AirDrop-for-Everything
 
-A cross-platform re-implementation of Apple's AirDrop protocol, in portable
-Python. Send and receive files the way `sharingd` does — mDNS `_airdrop._tcp`,
-TLS, `/Discover` `/Ask` `/Upload`, DVZip-wrapped cpio — on **Linux, macOS,
-Windows, Android**, and anywhere else Python runs.
+**AirDrop on everything.** A clean-room, cross-platform reimplementation of
+Apple's AirDrop protocol in portable Python — send and receive files the way
+`sharingd` does, on **Linux, macOS, Windows, Android**, and anywhere else
+Python runs.
 
-Inspired by and reverse-engineered from **[t4t5/omdrop-owl](https://github.com/t4t5/omdrop-owl)**
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python ≥ 3.9](https://img.shields.io/badge/python-%E2%89%A53.9-blue.svg)](pyproject.toml)
+[![Platform: any](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows%20%7C%20android-lightgrey.svg)](README.md#platform-matrix)
+
+Inspired by — and reverse-engineered alongside — **[t4t5/omdrop-owl](https://github.com/t4t5/omdrop-owl)**
 (Brent Kearney's Omdrop on OWL). See [NOTICE](NOTICE) for full provenance and
 credits. Licensed [MIT](LICENSE).
 
+## Install
+
+```sh
+pip install "git+https://github.com/BenItBuhner/AirDrop-for-Everything.git"
+# or clone, then: pip install .[all]
 ```
-pip install .            # core: mDNS + TLS + protocol
-pip install .[all]       # + Pillow thumbnails, cert gen, iface lookup
-pip install .[ble-linux] # + BlueZ BLE wake adverts (Linux)
+
+Extras: `.[all]` adds Pillow thumbnails, `cryptography` cert generation and
+`psutil` interface lookup; `.[ble-linux]` adds BlueZ BLE wake adverts;
+`.[ble-windows]` adds the WinRT backend.
+
+## Demo
+
+```console
+$ a4e receive --outdir .\drops --name TestBox
+AirDrop receiver 'TestBox' (MacBookPro18,3)
+  service:  4c82a9b89c1f._airdrop._tcp.local :8771
+  via:      LAN on all interfaces
+  saving:   C:\drops
+  policy:   everyone
+
+$ a4e send report.pdf                       # elsewhere on the network
+receiver: 'TestBox' (4c82a9b89c1f) at [192.168.4.254]:8771 - asking
+sent: report.pdf
 ```
 
 ## Why

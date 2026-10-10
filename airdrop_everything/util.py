@@ -7,7 +7,6 @@ import ipaddress
 import os
 import re
 import socket
-import struct
 import sys
 import unicodedata
 
@@ -49,10 +48,7 @@ def eui64_linklocal(mac):
     A Mac's AWDL link-local is always the EUI-64 of its AWDL MAC; iPhones
     randomise, so this is a hint there, not a guarantee.
     """
-    if isinstance(mac, str):
-        b = bytes(int(x, 16) for x in mac.split(":"))
-    else:
-        b = bytes(mac)
+    b = bytes(int(x, 16) for x in mac.split(":")) if isinstance(mac, str) else bytes(mac)
     b = bytes([b[0] ^ 0x02]) + b[1:3] + b"\xff\xfe" + b[3:]
     return "fe80::" + ":".join(f"{b[i] << 8 | b[i + 1]:x}" for i in range(0, 8, 2))
 
@@ -101,7 +97,7 @@ def iface_addrs(iface, want_ipv6=None):
     """
     try:
         import psutil
-        stats = psutil.net_if_stats()
+        psutil.net_if_stats()
         for name, addrs in psutil.net_if_addrs().items():
             if name != iface:
                 continue
@@ -130,7 +126,7 @@ def iface_addrs(iface, want_ipv6=None):
 
 
 def first_ipv6(iface):
-    for fam, addr in iface_addrs(iface, want_ipv6=True):
+    for _fam, addr in iface_addrs(iface, want_ipv6=True):
         return ipaddress.IPv6Address(addr)
     return None
 

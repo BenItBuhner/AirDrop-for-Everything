@@ -16,6 +16,7 @@ announcements go out as plain frames (OWL adds AWDL encapsulation itself).
 Exit codes: 0 ok | 2 usage/not root | 3 can't become discoverable now
 (AP channel) | 4 no AWDL radio | 5 already discoverable (window extended).
 """
+import contextlib
 import json
 import os
 import re
@@ -26,8 +27,8 @@ import sys
 import time
 from pathlib import Path
 
-from . import const, discovery
-from .util import eui64_linklocal, platform_name
+from . import const
+from .util import platform_name
 
 RUN = Path(os.environ.get("A4E_RUN", "/run/airdrop-everything"))
 CONF = Path(os.environ.get("A4E_CONF", "/etc/airdrop-everything"))
@@ -172,10 +173,8 @@ def cmd_status(as_json=False):
     vis = visible()
     remaining = None
     reason = ""
-    try:
+    with contextlib.suppress(OSError):
         reason = (RUN / "reason").read_text().strip()
-    except OSError:
-        pass
     if vis:
         try:
             until = int((RUN / "until").read_text().strip() or 0)
@@ -185,10 +184,8 @@ def cmd_status(as_json=False):
             remaining = max(0, until - int(time.time()))
     rx = False
     if vis:
-        try:
+        with contextlib.suppress(OSError):
             rx = "add peer" in (RUN / "owl.log").read_text()
-        except OSError:
-            pass
     if as_json:
         print(json.dumps({"visible": vis, "remaining": remaining,
                           "reason": reason.replace('"', ""), "rx_proven": rx,
@@ -223,36 +220,36 @@ def cmd_probe(as_json=False):
     hw = True
     if not sta:
         hw = False
-        missing.append(("hardware", "This computer has no Wi-Fi interface "
-                        "this backend can use."))
+        missing.append(("hardware", ("This computer has no Wi-Fi interface "
+                        "this backend can use.")))
     else:
         drv = driver_of(sta)
         prof = load_profile(drv)
         if prof is None:
             hw = False
-            missing.append(("backend", f"hardware profiles missing "
-                           f"({PROFILES_PATH}); reinstall."))
+            missing.append(("backend", (f"hardware profiles missing "
+                           f"({PROFILES_PATH}); reinstall.")))
         elif prof["status"] != "tested" and knob("allow-untested") != "1":
             hw = False
             missing.append(("hardware", untested_hint(drv)))
         else:
             if not os.path.isfile(OWL_BIN) or not os.access(OWL_BIN, os.X_OK):
-                missing.append(("backend", f"OWL is not installed at "
-                               f"{OWL_BIN}."))
+                missing.append(("backend", (f"OWL is not installed at "
+                               f"{OWL_BIN}.")))
             if prof["mode"] != "shared":
-                missing.append(("backend", f"profile asks for "
-                               f"\"{prof['mode']}\" mode, not implemented."))
+                missing.append(("backend", (f"profile asks for "
+                               f"\"{prof['mode']}\" mode, not implemented.")))
             out = subprocess.run(["iw", "dev", sta, "link"],
                                  capture_output=True, text=True).stdout
             m = re.search(r"freq:\s*(\d+)", out)
             ap = int(m.group(1)) if m else None
             if ap is None:
-                missing.append(("radio", "Wi-Fi isn't connected, and AirDrop "
-                               "shares its channel. Connect to Wi-Fi first."))
+                missing.append(("radio", ("Wi-Fi isn't connected, and AirDrop "
+                               "shares its channel. Connect to Wi-Fi first.")))
             elif ap not in AWDL_FREQS:
-                missing.append(("radio", f"Your Wi-Fi network is on {ap} MHz, "
+                missing.append(("radio", (f"Your Wi-Fi network is on {ap} MHz, "
                                "but AirDrop can only share channel 6, 44 or "
-                               "149 with it. Move the router to one of those."))
+                               "149 with it. Move the router to one of those.")))
     if not as_json:
         for _id, say in missing:
             print(say)
@@ -271,16 +268,12 @@ def cmd_stop(why="stopped"):
         die("must run as root", 2)
     sup = pid_of("supervisor")
     if sup and sup not in (os.getpid(), os.getppid()):
-        try:
+        with contextlib.suppress(OSError):
             os.kill(sup, signal.SIGTERM)
-        except OSError:
-            pass
     owl = pid_of("owl")
     if owl:
-        try:
+        with contextlib.suppress(OSError):
             os.kill(owl, signal.SIGTERM)
-        except OSError:
-            pass
     subprocess.run(["ip", "link", "set", IF_MON, "down"],
                    capture_output=True)
     subprocess.run(["iw", "dev", IF_MON, "del"], capture_output=True)
@@ -294,10 +287,8 @@ def cmd_stop(why="stopped"):
         if d:
             a, _, b = pm.partition(" ")
             for fname, val in (("runtime-pm", a), ("deep-sleep", b)):
-                try:
+                with contextlib.suppress(OSError):
                     Path(d, fname).write_text(val)
-                except OSError:
-                    pass
     reconnect = knob("reconnect-after")
     if reconnect == "0":
         reconnect = "no"
@@ -317,21 +308,16 @@ def cmd_stop(why="stopped"):
         if r.returncode:
             subprocess.run(["iw", "dev", sta, "disconnect"], capture_output=True)
     for f in ("supervisor.pid", "owl.pid", "until"):
-        try:
+        with contextlib.suppress(OSError):
             (RUN / f).unlink()
-        except OSError:
-            pass
-    try:
+    with contextlib.suppress(OSError):
         (RUN / "reason").write_text(why)
-    except OSError:
-        pass
     _log(f"stopped ({why})")
     return 0
 
 
 def supervise_loop():
     """Background half of a window: announce, watch OWL, end at expiry."""
-    import threading
     from .util import iface_mac
     mac = iface_mac(IF_AWD)
     if mac:
@@ -385,10 +371,8 @@ def cmd_start(secs):
         return 5
     for f in ("log", "announce.log"):
         (RUN / f).write_text("")
-    try:
+    with contextlib.suppress(OSError):
         (RUN / "reason").unlink()
-    except OSError:
-        pass
 
     sta = station_iface()
     if not sta:
@@ -473,7 +457,7 @@ def cmd_start(secs):
             pass
 
     (RUN / "until").write_text(str(int(time.time()) + secs) if secs > 0 else "0")
-    owl_log = open(RUN / "owl.log", "wb")
+    owl_log = open(RUN / "owl.log", "wb")  # noqa: SIM115 - daemon log, kept open
     owl = subprocess.Popen(
         [OWL_BIN, "-i", IF_MON, "-c", str(chan), "-N", "-S", "intersect",
          *owl_extra, "-v"],
@@ -487,10 +471,8 @@ def cmd_start(secs):
         time.sleep(0.5)
     else:
         tail = ""
-        try:
+        with contextlib.suppress(OSError, IndexError):
             tail = (RUN / "owl.log").read_text().strip().splitlines()[-1]
-        except (OSError, IndexError):
-            pass
         cmd_stop("owl-failed")
         die(f"AWDL didn't come up: {tail or 'OWL exited'}", 4)
     subprocess.run(["nmcli", "device", "set", IF_AWD, "managed", "no"],

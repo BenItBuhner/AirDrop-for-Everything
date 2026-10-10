@@ -12,6 +12,7 @@ Portable re-implementation of omdrop's airdrop-serve.py behaviour:
 Threaded because sharingd opens several connections at once; a single-thread
 server would hold /Discover behind a stalled one.
 """
+import contextlib
 import io
 import json
 import logging
@@ -20,7 +21,6 @@ import plistlib
 import shutil
 import socket
 import ssl
-import stat as stat_mod
 import struct
 import tempfile
 import threading
@@ -28,9 +28,9 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-from . import contacts, dvzip, cpio
+from . import contacts, cpio, dvzip
 from .const import UPLOAD_CONTENT_TYPE
-from .util import safe_name, open_new
+from .util import open_new, safe_name
 
 log = logging.getLogger("airdrop.server")
 
@@ -303,10 +303,8 @@ def store_upload(raw, dest, tid, receive_budget):
                 written.append(name)
     except Exception:
         for name in reversed(created):
-            try:
+            with contextlib.suppress(FileNotFoundError):
                 os.unlink(os.path.join(dest, name))
-            except FileNotFoundError:
-                pass
         raise
     return written
 
@@ -492,10 +490,8 @@ def make_handler(cfg):
                 return
             if cfg["visibility"] == "contacts":
                 peer_cert = None
-                try:
+                with contextlib.suppress(AttributeError, ValueError):
                     peer_cert = self.connection.getpeercert(binary_form=True)
-                except (AttributeError, ValueError):
-                    pass
                 outcome, detail = contacts.decide(ask.get("SenderRecordData"), peer_cert)
                 if outcome != contacts.ACCEPT:
                     log.warning("ask REFUSED (contacts only): %s%s",
@@ -641,11 +637,9 @@ class ServerV6(AirDropHTTPServer):
         # Dual-stack where the platform lets us: Windows/macOS default
         # IPV6_V6ONLY=1 which would refuse every IPv4 peer on a "::" bind.
         if self.server_address[0] in ("::", None):
-            try:
+            with contextlib.suppress(OSError):
                 self.socket.setsockopt(socket.IPPROTO_IPV6,
                                        socket.IPV6_V6ONLY, 0)
-            except OSError:
-                pass
         super().server_bind()
 
 

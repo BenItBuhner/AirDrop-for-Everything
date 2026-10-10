@@ -13,6 +13,7 @@ Keys are searched in ``--keys DIR``, then ``~/.airdrop-everything/keys``,
 then ``~/.omdrop/keys`` so a machine that also runs omdrop shares its
 identity with it.
 """
+import contextlib
 import os
 import ssl
 import subprocess
@@ -67,6 +68,7 @@ def create_self_signed(directory, computer_name):
 
 def _gen_with_cryptography(certificate, key, computer_name):
     import datetime
+
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
@@ -94,8 +96,8 @@ def _gen_with_cryptography(certificate, key, computer_name):
 def _gen_with_openssl(certificate, key, computer_name):
     import tempfile
     name = computer_name.replace("\\", "\\\\").replace("/", "\\/")
-    with tempfile.TemporaryDirectory(dir=str(certificate.parent)) as tmp:
-        tmp = Path(tmp)
+    with tempfile.TemporaryDirectory(dir=str(certificate.parent)) as tmp_s:
+        tmp = Path(tmp_s)
         result = subprocess.run(
             ["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-x509",
              "-days", "365", "-subj", f"/CN={name}",
@@ -113,10 +115,8 @@ def _gen_with_openssl(certificate, key, computer_name):
 
 
 def _chmod600(path):
-    try:
+    with contextlib.suppress(OSError):
         os.chmod(path, 0o600)
-    except OSError:
-        pass
 
 
 def resolve(keys=None, computer_name="airdrop", create=True):
@@ -173,5 +173,5 @@ def extract_macos_identity(outdir):
     # Integration CA. Take the first match as a starting point.
     cert_pem.write_bytes(proc.stdout)
     raise IdentityError(
-        "certificate written to %s; export the matching private key from "
-        "Keychain Access as key.pem beside it" % cert_pem)
+        f"certificate written to {cert_pem}; export the matching private "
+        "key from Keychain Access as key.pem beside it")

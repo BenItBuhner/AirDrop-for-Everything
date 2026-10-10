@@ -10,7 +10,7 @@ import threading
 
 import pytest
 
-from airdrop_everything import cpio, dvzip, identity, server
+from airdrop_everything import identity, server
 from airdrop_everything.client import AirDropClient, Declined, send_files
 
 
@@ -82,7 +82,7 @@ def test_declined(receiver, tmp_path):
 
 
 def test_ask_payload_shape(receiver, tmp_path, monkeypatch):
-    ident, port, dest, cfg = receiver
+    ident, port, _dest, cfg = receiver
     seen = {}
     cfg["on_ask"] = lambda ask: seen.update(ask) or True
     src = tmp_path / "doc.txt"

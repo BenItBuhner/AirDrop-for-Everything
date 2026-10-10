@@ -15,12 +15,10 @@ Three real link layers exist:
 Windows and Android can't do AWDL without exotic hardware (no monitor-mode +
 frame injection drivers), so `auto` resolves to lan there.
 """
-import ipaddress
 import logging
 import socket
-import sys
 
-from .util import first_ipv6, iface_mac, platform_name, short_hostname
+from .util import first_ipv6, iface_mac, platform_name
 
 log = logging.getLogger("airdrop.transport")
 
@@ -153,7 +151,6 @@ def _primary_mac():
     """MAC of the interface owning the default route (best effort)."""
     try:
         import psutil
-        gw = None
         stats = psutil.net_if_stats()
         # Heuristic: first up, non-loopback interface with an IPv4 address.
         for name, addrs in psutil.net_if_addrs().items():

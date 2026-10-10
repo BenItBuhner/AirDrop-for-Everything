@@ -27,12 +27,13 @@ def write_newc(entries, out):
     arcname should already be "./name" style, as sharingd writes it.
     """
     ino = 1
-    for name, data, size in entries:
+    for name, data, entry_size in entries:
         if data is None:
             mode = stat.S_IFDIR | 0o755
             size = 0
         else:
             mode = stat.S_IFREG | 0o644
+            size = entry_size
         name_b = name.encode("utf-8", "surrogateescape")
         fields = [
             ino & 0xFFFFFFFF, mode, 0, 0, 1,          # ino mode uid gid nlink
@@ -84,7 +85,7 @@ def _mtime():
 
 class Entry:
     """One archive member yielded by read()."""
-    __slots__ = ("name", "size", "mode", "isfile", "isdir", "mtime")
+    __slots__ = ("isdir", "isfile", "mode", "mtime", "name", "size")
 
     def __init__(self, name, size, mode, mtime=0):
         self.name = name
@@ -111,8 +112,8 @@ def read(stream):
             if len(hdr) < 104:
                 return
             f = [int(hdr[i * 8:i * 8 + 8], 16) for i in range(13)]
-            (ino, mode, uid, gid, nlink, mtime, size,
-             devmaj, devmin, rdevmaj, rdevmin, namesize, check) = f
+            (_ino, mode, _uid, _gid, _nlink, mtime, size,
+             _devmaj, _devmin, _rdevmaj, _rdevmin, namesize, _check) = f
             name_b = stream.read(namesize)
             if len(name_b) < namesize:
                 return
@@ -130,7 +131,7 @@ def read(stream):
             hdr = stream.read(70)
             if len(hdr) < 70:
                 return
-            def octf(a, b):
+            def octf(a, b, hdr=hdr):
                 return int(hdr[a:b], 8)
             mode = octf(12, 18)
             mtime = octf(42, 53)

@@ -1,11 +1,8 @@
 """Protocol-level tests: plists, BLE payload, AF parser, safe_name, contacts."""
-import io
 import plistlib
 import struct
 
-import pytest
-
-from airdrop_everything import aframes, ble, const, contacts, discovery, util
+from airdrop_everything import aframes, ble, const, contacts, util
 from airdrop_everything.util import safe_name
 
 
@@ -24,7 +21,7 @@ def test_eui64():
 
 
 def test_ble_payload_arm_a():
-    value, tag = ble.build_payload(arm="A", tag=b"\xaa\xbb\xcc")
+    value, _tag = ble.build_payload(arm="A", tag=b"\xaa\xbb\xcc")
     assert value[:2] == bytes([0x05, 0x12])
     assert len(value) == 20
     body = value[2:]
@@ -42,10 +39,10 @@ def test_ble_payload_arms():
 
 
 def test_mdns_announcement_records():
-    from airdrop_everything.discovery import build_announcement, _dname
+    from airdrop_everything.discovery import build_announcement
     ll = bytes.fromhex("fe800000000000000000000000000001")
     pkt = build_announcement("aabbccddeeff", "test.local", 8771, 0x89, ll)
-    tid, flags, qd, an, ns, ar = struct.unpack("!HHHHHH", pkt[:12])
+    _tid, flags, qd, an, _ns, _ar = struct.unpack("!HHHHHH", pkt[:12])
     assert flags == 0x8400 and qd == 0 and an == 4
     assert b"_airdrop" in pkt
     assert b"flags=137" in pkt
@@ -79,7 +76,7 @@ def test_af_parse_fixture():
 def test_extract_body_from_frame():
     hdr = b"\x00" * 24  # fake radiotap+802.11 hdr
     body = const.AF_VENDOR_MAGIC + bytes([0x08, 0x10, 0x00]) + bytes(9)
-    found, sa = aframes.extract_body(hdr + b"\xde\xad\xbe\xef\x00\x01" + b"\0\0" + body)
+    found, _sa = aframes.extract_body(hdr + b"\xde\xad\xbe\xef\x00\x01" + b"\0\0" + body)
     assert found == body
     # sa is extracted from the fixed 802.11 header offset when present
 

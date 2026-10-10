@@ -13,7 +13,6 @@ a monitor interface with AF_PACKET (Linux only, root).
 import json
 import logging
 import struct
-import sys
 import time
 
 from .const import AF_VENDOR_MAGIC
@@ -29,17 +28,17 @@ def name(b, off):
     """DNS-style labels with AWDL's c0xx dictionary tail -> (name, next_off)."""
     labels = []
     while off < len(b):
-        l = b[off]
-        if l == 0xC0:
+        ln = b[off]
+        if ln == 0xC0:
             code = b[off + 1]
             tail = DICT.get(code, f"<c0{code:02x}>")
             if tail:
                 labels.append(tail)
             return ".".join(labels), off + 2
-        if l == 0:
+        if ln == 0:
             return ".".join(labels), off + 1
-        labels.append(b[off + 1:off + 1 + l].decode("utf-8", "replace"))
-        off += 1 + l
+        labels.append(b[off + 1:off + 1 + ln].decode("utf-8", "replace"))
+        off += 1 + ln
     return ".".join(labels), off
 
 
@@ -47,9 +46,9 @@ def tlvs(body):
     i = 0
     while i + 3 <= len(body):
         t = body[i]
-        l = struct.unpack("<H", body[i + 1:i + 3])[0]
-        yield t, body[i + 3:i + 3 + l]
-        i += 3 + l
+        ln = struct.unpack("<H", body[i + 1:i + 3])[0]
+        yield t, body[i + 3:i + 3 + ln]
+        i += 3 + ln
 
 
 def service_response(v):
@@ -63,14 +62,14 @@ def service_response(v):
     if rtype == 12:
         val = {"ptr": name(rd, 0)[0]}
     elif rtype == 33:
-        prio, weight, port = struct.unpack(">HHH", rd[:6])
+        _prio, _weight, port = struct.unpack(">HHH", rd[:6])
         val = {"srv": {"port": port, "target": name(rd, 6)[0]}}
     elif rtype == 16:
         txt, j = [], 0
         while j < len(rd):
-            l = rd[j]
-            txt.append(rd[j + 1:j + 1 + l].decode("utf-8", "replace"))
-            j += 1 + l
+            ln = rd[j]
+            txt.append(rd[j + 1:j + 1 + ln].decode("utf-8", "replace"))
+            j += 1 + ln
         val = {"txt": txt}
     else:
         val = {f"type{rtype}": rd.hex()}
@@ -167,8 +166,8 @@ def endpoints_from_log(path, want=None):
     if not os.path.exists(path):
         return []
     with open(path) as f:
-        for line in f:
-            line = line.strip()
+        for raw in f:
+            line = raw.strip()
             if not line:
                 continue
             try:

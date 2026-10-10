@@ -23,11 +23,11 @@ Backends, best-first per OS:
   macos   -> not possible: CBPeripheralManager cannot emit manufacturer data
   android -> raw HCI path under Termux-with-root, otherwise unavailable
 """
+import contextlib
 import logging
 import os
 import plistlib
 import subprocess
-import sys
 import time
 
 from . import const
@@ -158,10 +158,8 @@ class HciToolBackend(Backend):
 
     def stop(self):
         if self._on:
-            try:
+            with contextlib.suppress(Exception):
                 self._cmd("0x08", "0x000a", "0x00")
-            except Exception:
-                pass
             self._on = False
 
 
@@ -179,6 +177,7 @@ class BlueZDBusBackend(Backend):
 
     def start(self, value, interval_ms):
         import threading
+
         import dbus
         import dbus.mainloop.glib
         import dbus.service
@@ -306,10 +305,8 @@ class WinRTBackend(Backend):
 
     def stop(self):
         if self.publisher:
-            try:
+            with contextlib.suppress(Exception):
                 self.publisher.stop()
-            except Exception:
-                pass
 
 
 class UnsupportedBackend(Backend):

@@ -10,17 +10,15 @@
   a4e af-listen      dump AWDL action frames (Linux, monitor interface, root)
 """
 import argparse
-import io
+import contextlib
 import logging
 import os
-import plistlib
-import socket
 import sys
 import threading
 import time
 
 from . import __version__, ble, const, contacts, discovery, identity, transport
-from .util import platform_name, safe_name, short_hostname
+from .util import platform_name, short_hostname
 
 log = logging.getLogger("airdrop")
 
@@ -41,7 +39,7 @@ def _load_config(path=None):
     except FileNotFoundError:
         return {}
     except tomllib.TOMLDecodeError as e:
-        raise SystemExit(f"{path}: {e}")
+        raise SystemExit(f"{path}: {e}") from e
 
 
 def _resolve_identity(args):
@@ -49,7 +47,7 @@ def _resolve_identity(args):
         return identity.resolve(keys=getattr(args, "keys", None),
                                 computer_name=_sender_name(args))
     except identity.IdentityError as e:
-        raise SystemExit(f"identity error: {e}")
+        raise SystemExit(f"identity error: {e}") from e
 
 
 def _receiver_name(args, cfg):
@@ -73,7 +71,6 @@ def _sender_name(args):
 
 
 def _dest(args, cfg):
-    import stat as sm
     d = getattr(args, "outdir", None) or cfg.get("download_dir") \
         or os.path.join(os.path.expanduser("~"), "Downloads")
     d = os.path.realpath(os.path.expanduser(d))
@@ -106,7 +103,7 @@ def cmd_receive(args):
     host_label = (name.lower().replace(" ", "-") or "a4e") \
         if trans.mode == "lan" else _awdl_host(name)
 
-    ask_lock = threading.Event()
+    threading.Event()
 
     def on_ask(ask):
         if not getattr(args, "ask", False):
@@ -128,7 +125,7 @@ def cmd_receive(args):
         "record_data": ident.record_data,
         "on_ask": on_ask if getattr(args, "ask", False) else None,
         "on_upload": lambda tid, files: print(
-            f"received: {', '.join(files)}") or args.quiet and None,
+            f"received: {', '.join(files)}") or (args.quiet and None),
     }
 
     srv = server.serve(cfg, ident, host=trans.bind_addr, port=args.port)
@@ -155,8 +152,12 @@ def cmd_receive(args):
     zc.start(trans.addrs)
     announcers.append(zc)
 
-    print(f"{service_id}._airdrop._tcp.local as {name!r} ({model}) on "
-          f"{trans.describe()} :{args.port} -> {dest} [{visibility}]")
+    print(f"AirDrop receiver {name!r} ({model})")
+    print(f"  service:  {service_id}._airdrop._tcp.local :{args.port}")
+    print(f"  via:      {trans.describe()}")
+    print(f"  saving:   {dest}")
+    print(f"  policy:   {visibility}"
+          + (" (prompting per transfer)" if getattr(args, "ask", False) else ""))
 
     stop = threading.Event()
 
@@ -179,10 +180,8 @@ def cmd_receive(args):
             time.sleep(0.25)
     finally:
         for a in announcers:
-            try:
+            with contextlib.suppress(Exception):
                 a.stop()
-            except Exception:
-                pass
         srv.reset_sessions()
         srv.server_close()
     return 0
@@ -228,7 +227,7 @@ def cmd_send(args):
         if args.direct:
             host, _, port = args.direct.rpartition(":")
             host = host.strip("[]")
-            from .client import send_files, AirDropClient
+            from .client import AirDropClient
             c = AirDropClient(ident, (host, int(port)),
                               computer_name=_sender_name(args),
                               computer_model=_model(args, {}),
@@ -277,15 +276,15 @@ def cmd_send(args):
         client.computer_name = _sender_name(args)
         client.computer_model = _model(args, {})
         client.service_id = service_id
-        print(f"FOUND {chosen['ident']} {chosen.get('name')!r} at "
-              f"[{chosen['addr']}]:{chosen['port']}; asking")
+        print(f"receiver: {chosen.get('name')!r} ({chosen['ident']}) "
+              f"at [{chosen['addr']}]:{chosen['port']} - asking")
         client.reconnect(timeout=args.ask_timeout)
         if not client.send_ask(files, auth_tag=auth_tag):
             print("declined")
             return 3
         ok = client.send_upload(files)
         what = names[0] if len(names) == 1 else f"{len(names)} files"
-        print(f"UPLOAD {what} -> {'ok' if ok else 'FAILED'}")
+        print(f"{'sent' if ok else 'upload failed'}: {what}")
         return 0 if ok else 4
     finally:
         if advertiser:
@@ -401,7 +400,7 @@ def cmd_identity(args):
         return 0
     try:
         ident = identity.resolve(keys=args.keys, create=False)
-        d = identity.default_keys_dir()
+        identity.default_keys_dir()
         print(f"identity: {ident.kind}")
         print(f"  certificate: {ident.certificate}")
         print(f"  key:         {ident.key}")
@@ -434,12 +433,11 @@ def cmd_doctor(args):
         owl = os.environ.get("A4E_OWL", "/usr/lib/airdrop-everything/owl")
         print(f"OWL binary:     {'found' if os.access(owl, os.X_OK) else 'missing'} ({owl})")
         sta = None
-        try:
+        with contextlib.suppress(OSError):
             sta = os.listdir("/sys/class/net")
-        except OSError:
-            pass
         if sta:
-            import subprocess, re
+            import re
+            import subprocess
             for name in sta:
                 if name in ("awdl0", "mon0", "lo"):
                     continue
@@ -486,7 +484,8 @@ def build_parser():
         prog="airdrop-everything",
         description="AirDrop for every platform: send and receive over "
                     "AWDL (macOS/Linux+OWL) or plain LAN.")
-    p.add_argument("--version", action="version", version=__version__)
+    p.add_argument("--version", action="version",
+                   version=f"%(prog)s {__version__}")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="cmd", required=True)
 

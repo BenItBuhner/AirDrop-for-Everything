@@ -12,19 +12,18 @@ Portable re-implementation of omdrop-awdl's airdrop-send.py:
 Exit semantics mirror the original: 0 sent | 2 no receiver | 3 declined |
 4 upload failed -- surfaced as Python exceptions/results here.
 """
+import contextlib
 import io
 import ipaddress
 import logging
 import os
 import plistlib
-import socket
 import ssl
 import threading
-import time
 import uuid
 from http.client import HTTPSConnection
 
-from . import const, dvzip, cpio
+from . import const, cpio, dvzip
 from .util import eui64_linklocal, short_hostname
 
 log = logging.getLogger("airdrop.client")
@@ -143,20 +142,16 @@ class AirDropClient:
         ACKed in full and never dispatched.
         """
         if self.http_conn is not None:
-            try:
+            with contextlib.suppress(OSError):
                 self.http_conn.close()
-            except OSError:
-                pass
         self._connect()      # connects eagerly, with address fallback
         if timeout:
             self.http_conn.sock.settimeout(timeout)
 
     def close(self):
         if self.http_conn is not None:
-            try:
+            with contextlib.suppress(OSError):
                 self.http_conn.close()
-            except OSError:
-                pass
             self.http_conn = None
 
     # ------------------------------------------------------------------ protocol
@@ -216,7 +211,8 @@ class AirDropClient:
         stream = io.BytesIO()
         entries = []
         for f in files:
-            entries.append((f"./{os.path.basename(f)}", open(f, "rb"),
+            entries.append((f"./{os.path.basename(f)}",
+                            open(f, "rb"),  # noqa: SIM115 - closed below
                             os.path.getsize(f)))
         try:
             cpio.write_newc(entries, stream)
@@ -392,10 +388,8 @@ class Finder:
         self.seen[ident] = {"name": name, "addr": addrs[0],
                             "port": int(info.port)}
         if self.on_peer:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_peer(ident, name, addrs[0], int(info.port))
-            except Exception:
-                pass
         if want and len(want) != 12 and ":" not in want and \
                 (name is None or want.lower() not in name.lower()):
             client.close()

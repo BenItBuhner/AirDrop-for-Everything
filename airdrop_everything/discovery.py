@@ -47,7 +47,7 @@ class ZeroconfAnnouncer:
 
     def __init__(self, host_label, service_id, port, flags, interfaces=None,
                  ip_version=None, reannounce=0):
-        from zeroconf import Zeroconf, IPVersion
+        from zeroconf import IPVersion, Zeroconf
         self.info_kwargs = dict(host_label=host_label, service_id=service_id,
                                 port=port, flags=flags)
         self._addresses = interfaces
@@ -331,7 +331,6 @@ class RawResponder:
 
 def _dns_name(pkt, off):
     labels = []
-    jumped = False
     nxt = None
     hops = 0
     while True:
