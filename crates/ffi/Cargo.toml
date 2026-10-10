@@ -1,0 +1,21 @@
+[package]
+name = "airdrop-ffi"
+description = "C ABI over airdrop-core for native shells (Android/macOS/Windows)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+airdrop-core = { path = "../core" }
+hostname = "0.4"
+# unconditional (not android-gated) so `cargo check` type-verifies the glue
+# on every host; the Java_* exports are inert symbols elsewhere
+jni = "0.21"
+
+[dev-dependencies]
+env_logger = "0.11"
+log = "0.4"

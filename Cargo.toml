@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/cli", "crates/gui", "crates/ffi"]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/BenItBuhner/AirDrop-for-Everything"
+
+[profile.dev]
+# this machine is RAM-constrained: full debuginfo OOMs rustc-LLVM on the
+# big dependency crates (icu/windows-sys/egui) — line tables suffice
+debug = "line-tables-only"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+strip = true

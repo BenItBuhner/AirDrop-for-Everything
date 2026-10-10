@@ -1,0 +1,17 @@
+[package]
+name = "a4e-gui"
+description = "a4e-gui — AirDrop for every platform (desktop app)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "a4e-gui"
+path = "src/main.rs"
+
+[dependencies]
+airdrop-core = { path = "../core" }
+eframe = "0.31"
+rfd = "0.15"
+anyhow = "1"

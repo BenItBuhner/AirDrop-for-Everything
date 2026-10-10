@@ -6,3 +6,4 @@ e2e/
 *.egg-info/
 dist/
 build/
+target/
