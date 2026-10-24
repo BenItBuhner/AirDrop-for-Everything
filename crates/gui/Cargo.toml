@@ -12,6 +12,6 @@ path = "src/main.rs"
 
 [dependencies]
 airdrop-core = { path = "../core" }
-eframe = "0.31"
+eframe = "0.32.3"
 rfd = "0.15"
 anyhow = "1"
